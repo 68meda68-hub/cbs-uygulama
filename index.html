@@ -640,7 +640,7 @@ input[type="range"]:hover::-ms-thumb {
     left: 50%;          /* yatayda ortala */
     transform: translateX(-50%);
     color: #fff;        /* yazı rengi */
-    font-size: 12px;
+    font-size: 14px;
     font-family: 'Consolas', monospace;
     pointer-events: auto; /* dokunulabilir olsun */
 	opacity: 0;
@@ -648,7 +648,7 @@ input[type="range"]:hover::-ms-thumb {
     }
 @media only screen and (max-width: 414px) {
 	#altYazi {
-	font-size: 10px;
+	font-size: 13px;
 	bottom: 100px; 
 	}
 }
@@ -1945,6 +1945,8 @@ function goToCoordinates() {
       map.flyTo({
         center: [lng, lat],
         zoom: 14,
+		speed: 0.7,      // 🐢 daha yavaş hareket
+        curve: 1.4,      // daha düzgün animasyon
         essential: true
       });
 
@@ -2225,9 +2227,19 @@ document.getElementById('konum').addEventListener('click', (e) => {
 
     // Sadece ilk konumda flyTo
     if (firstFly) {
-      map.flyTo({ center: [longitude, latitude], zoom: 16 });
-      firstFly = false;
-    }
+    rotating = false;
+    map.setProjection({ name: 'mercator' });  // Projeksiyon
+
+    map.flyTo({
+        center: [longitude, latitude],
+        zoom: 16,
+        speed: 0.7,      // 🐢 daha yavaş hareket
+        curve: 1.4,      // daha düzgün animasyon
+        easing: t => t   // lineer yumuşak geçiş
+    });
+
+    firstFly = false;
+}
 
   }, error => {
     switch(error.code){
