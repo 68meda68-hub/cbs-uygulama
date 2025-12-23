@@ -1252,93 +1252,101 @@ map.addSource('parsellerSource', {
   
  ////////Parsel arama 
 let parselFeatures = [];
- // Haritadaki tile'lardan ADI değerlerini al
-  map.on('idle', () => {
-    const features = map.querySourceFeatures('parsellerSource', {
-      sourceLayer: 'marParselleri_0'
-    });
 
-    const seen = new Set();
-
-    for (const f of features) {
-      const id = f.properties.ADI;
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        parselFeatures.push(f);
-      }
-    }
-
-    console.log(`Yüklenen ADI sayısı: ${parselFeatures.length}`);
+// Haritadaki tile'lardan ADI değerlerini al
+map.on('idle', () => {
+  parselFeatures = []; // 🔴 HER IDLE'DA TEMİZLE
+  const features = map.querySourceFeatures('parsellerSource', {
+    sourceLayer: 'marParselleri_0'
   });
 
-  // Geocoder (Arama)
-  const geocoder = new MapboxGeocoder({
-    accessToken: mapboxgl.accessToken,
-    localGeocoder: localParselGeocoder,
-    zoom: 15,
-    placeholder: 'Adres veya Parsel Adı girin',
-    mapboxgl: mapboxgl,
-    marker: {
-      color: 'blue',
-      scale: 0.8
+  const seen = new Set();
+
+  for (const f of features) {
+    const id = f.properties.ADI;
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      parselFeatures.push(f);
     }
-  });
-
-  map.addControl(geocoder);
-  
-  // 🔹 💡 BURAYA EKLE
-  // Geocoder sonucu seçildiğinde uçuş işlemini yönet
-  geocoder.on('result', (e) => {
-    rotating = false; // Globe dönüşünü durdur
-
-    // Arka plan yumuşak geçiş
-    const mapDiv = document.getElementById('map');
-    mapDiv.style.transition = 'background-color 1s ease';
-    mapDiv.style.backgroundColor = '#fffaf0';
-    map.setPaintProperty('background-layer', 'background-color', '#fffaf0');
-
-    // Projeksiyonu 2D'ye geçir
-    map.setProjection({ name: 'mercator' });
-
-    // Sonuç konumuna flyTo
-    map.flyTo({
-      center: e.result.center,
-      zoom: 14,
-      speed: 0.8,
-      curve: 1.4,
-      easing: t => t
-    });
-  });
-
-  // Arama (autocomplete) içeriği
-  function localParselGeocoder(query) {
-    const results = [];
-
-    const matched = parselFeatures.filter(f =>
-      f.properties.ADI.toLowerCase().includes(query.toLowerCase())
-    );
-
-    for (const feature of matched) {
-      const center = turf.center(feature).geometry.coordinates;
-
-      results.push({
-        place_name: `ADI: ${feature.properties.ADI}`,
-        center: center,
-        geometry: {
-          type: 'Point',
-          coordinates: center
-        }
-      });
-    }
-
-    return results;
   }
 
-  geocoder.on('result', (e) => {
-    if (e.result.properties && e.result.properties.ADI) {
-      showPopup({ properties: e.result.properties }, e.result.center);
-    }
-  }); 	
+  console.log(`Yüklenen ADI sayısı: ${parselFeatures.length}`);
+});
+
+// Geocoder (Arama)
+const geocoder = new MapboxGeocoder({
+  accessToken: mapboxgl.accessToken,
+  localGeocoder: localParselGeocoder,
+  zoom: 15,
+  placeholder: 'Adres veya Parsel Adı girin',
+  mapboxgl: mapboxgl,
+  marker: {
+    color: 'blue',
+    scale: 0.8
+  }
+});
+
+map.addControl(geocoder);
+
+// Geocoder sonucu seçildiğinde
+geocoder.on('result', (e) => {
+  rotating = false;
+
+  const mapDiv = document.getElementById('map');
+  mapDiv.style.transition = 'background-color 1s ease';
+  mapDiv.style.backgroundColor = '#fffaf0';
+  map.setPaintProperty('background-layer', 'background-color', '#fffaf0');
+
+  map.setProjection({ name: 'mercator' });
+
+  map.flyTo({
+    center: e.result.center,
+    zoom: 14,
+    speed: 0.8,
+    curve: 1.4,
+    easing: t => t
+  });
+
+  if (e.result.properties && e.result.properties.ADI) {
+    showPopup({ properties: e.result.properties }, e.result.center);
+  }
+});
+
+// ===============================
+// 🔴 ASIL ÇÖZÜM BURASI
+// ===============================
+function localParselGeocoder(query) {
+  if (!query || query.length < 2) return [];
+
+  const results = [];
+  const used = new Set(); // 🔴 AYNI ADI ENGELLER
+
+  const q = query.toLowerCase();
+
+  for (const feature of parselFeatures) {
+    const adi = feature.properties.ADI;
+    if (!adi.toLowerCase().includes(q)) continue;
+
+    // 🔴 AYNI PARSEL ADI VARSA ATLA
+    if (used.has(adi)) continue;
+    used.add(adi);
+
+    const center = turf.center(feature).geometry.coordinates;
+
+    results.push({
+      id: adi, // 🔴 SABİT VE TEKİL
+      place_name: `Parsel : ${adi}`,
+      center: center,
+      geometry: {
+        type: 'Point',
+        coordinates: center
+      },
+      properties: feature.properties
+    });
+  }
+
+  return results;
+}
 
 ///////////////// 🟦 Ovalar Katmanı
 
@@ -2258,3 +2266,4 @@ document.getElementById('konum').addEventListener('click', (e) => {
 </script>
 </body>
 </html>
+
