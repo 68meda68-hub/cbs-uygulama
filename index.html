@@ -763,6 +763,67 @@ input[type="range"]:hover::-ms-thumb {
 	}
 }
 
+	/* export draw */
+.mapboxgl-ctrl-top-left {
+  position: fixed !important;
+  top: 500px !important;
+  left: -5px !important; /* küçük iç boşluk */
+  z-index: 1000;
+}
+.mapboxgl-ctrl-group.mapboxgl-ctrl {display: none;}	
+/* info kutusu — kontrolden 20px aşağıda */
+#info {
+  position: fixed;
+  left: 5px;
+  top: calc(450px + 10px); /* kontrolün 20px altı */
+  background: #fff;
+  padding: 3px 3px;
+  font-size: 11px;
+  border-radius: 4px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.25);
+  z-index: 999;
+  font-family: "Tahoma", sans-serif;
+  max-width: 320px;
+  white-space: normal;
+  display: none;
+}
+/* download butonu — info’nun hemen altında */
+#downloadGeojson {
+  position: fixed;
+  left: 5px;
+  top: calc(450px + 10px + 40px); /* info yüksekliği + boşluk */
+  background-color: #fff;
+  border-radius: 4px;
+  color: #000;
+  padding: 3px 3px;
+  cursor: pointer;
+  font-size: 11px;
+  border: 1px solid #ccc;
+  z-index: 999;
+  display: none;
+  transition: background-color 0.2s ease;
+}
+#downloadGeojson:hover {
+  background-color: #e0e0e0;
+}
+button#downloadGeojson:hover {
+	background: rgba(0, 0, 0, 0.75);
+	color:#fff;
+	}
+
+
+.geocoder-item {
+  font-size: 13px;
+}
+
+.parsel-label {
+  color: #2e7d32; /* YEŞİL */
+  font-weight: 600;
+}
+
+.parsel-name {
+  color: #000;
+}
 
 
 </style>
@@ -1277,14 +1338,29 @@ map.on('idle', () => {
 const geocoder = new MapboxGeocoder({
   accessToken: mapboxgl.accessToken,
   localGeocoder: localParselGeocoder,
+  localGeocoderOnly: false, // 🔥 KRİTİK
   zoom: 15,
   placeholder: 'Adres veya Parsel Adı girin',
   mapboxgl: mapboxgl,
   marker: {
     color: 'blue',
     scale: 0.8
+  },
+  render: function(item) {
+    if (item.properties && item.properties.ADI) {
+      return `
+        <div class="geocoder-item">
+          <span class="parsel-label">Parsel :</span>
+          <span class="parsel-name">${item.properties.ADI}</span>
+        </div>
+      `;
+    }
+
+    // 🔵 Normal Mapbox adres sonuçları
+    return `<div class="geocoder-item">${item.place_name}</div>`;
   }
 });
+
 
 map.addControl(geocoder);
 
@@ -1325,7 +1401,8 @@ function localParselGeocoder(query) {
 
   for (const feature of parselFeatures) {
     const adi = feature.properties.ADI;
-    if (!adi.toLowerCase().includes(q)) continue;
+    // 🔥 SADECE İLE BAŞLAYAN
+    if (!adi.toLowerCase().startsWith(q)) continue;
 
     // 🔴 AYNI PARSEL ADI VARSA ATLA
     if (used.has(adi)) continue;
@@ -1347,7 +1424,6 @@ function localParselGeocoder(query) {
 
   return results;
 }
-
 ///////////////// 🟦 Ovalar Katmanı
 
 map.addSource('ovalar-source', {
@@ -2266,4 +2342,5 @@ document.getElementById('konum').addEventListener('click', (e) => {
 </script>
 </body>
 </html>
+
 
