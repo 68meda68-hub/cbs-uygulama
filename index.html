@@ -763,55 +763,6 @@ input[type="range"]:hover::-ms-thumb {
 	}
 }
 
-	/* export draw */
-.mapboxgl-ctrl-top-left {
-  position: fixed !important;
-  top: 500px !important;
-  left: -5px !important; /* küçük iç boşluk */
-  z-index: 1000;
-}
-.mapboxgl-ctrl-group.mapboxgl-ctrl {display: none;}	
-/* info kutusu — kontrolden 20px aşağıda */
-#info {
-  position: fixed;
-  left: 5px;
-  top: calc(450px + 10px); /* kontrolün 20px altı */
-  background: #fff;
-  padding: 3px 3px;
-  font-size: 11px;
-  border-radius: 4px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.25);
-  z-index: 999;
-  font-family: "Tahoma", sans-serif;
-  max-width: 320px;
-  white-space: normal;
-  display: none;
-}
-/* download butonu — info’nun hemen altında */
-#downloadGeojson {
-  position: fixed;
-  left: 5px;
-  top: calc(450px + 10px + 40px); /* info yüksekliği + boşluk */
-  background-color: #fff;
-  border-radius: 4px;
-  color: #000;
-  padding: 3px 3px;
-  cursor: pointer;
-  font-size: 11px;
-  border: 1px solid #ccc;
-  z-index: 999;
-  display: none;
-  transition: background-color 0.2s ease;
-}
-#downloadGeojson:hover {
-  background-color: #e0e0e0;
-}
-button#downloadGeojson:hover {
-	background: rgba(0, 0, 0, 0.75);
-	color:#fff;
-	}
-
-
 .geocoder-item {
   font-size: 13px;
 }
@@ -824,7 +775,6 @@ button#downloadGeojson:hover {
 .parsel-name {
   color: #000;
 }
-
 
 </style>
 </head>
@@ -854,6 +804,7 @@ button#downloadGeojson:hover {
 			<div class="group-header" id="basemap-group-toggle">Temel Harita<span class="toggle-symbol">▼</span></div>
 			<div class="layer-group closed" id="basemap-group">
 				<label><input type="checkbox" id="toggleGoogleLayer" checked >Google</label>
+				<label><input type="checkbox" id="toggleMaptilerTopo">MapTiler Topo</label>
 			</div>
 		</div>	
 		<div>
@@ -1020,8 +971,6 @@ let rotating = true;
 
  map.on('load', async () => {
  
-
-
 // 🔹 Arka plan layer
     map.addLayer({
         id: 'background-layer',
@@ -1045,6 +994,23 @@ let rotating = true;
         minzoom: 0,
         maxzoom: 24
     });
+	
+	map.addSource('maptiler-topo-source', {
+    type: 'raster',
+    tiles: [
+      'https://api.maptiler.com/maps/topo-v4/{z}/{x}/{y}.png?key=aITbmYVmtmwD6PQn83NB'
+    ],
+    tileSize: 512
+  });
+
+  map.addLayer({
+    id: 'maptiler-topo-layer',
+    type: 'raster',
+    source: 'maptiler-topo-source',
+    layout: {
+      visibility: 'none' // başlangıçta kapalı
+    }
+  });
 	
 // Globe döndürme
 	function rotateGlobe() {
@@ -1309,8 +1275,6 @@ map.addSource('parsellerSource', {
         }
       });
 
-
-  
  ////////Parsel arama 
 let parselFeatures = [];
 
@@ -1424,6 +1388,7 @@ function localParselGeocoder(query) {
 
   return results;
 }
+
 ///////////////// 🟦 Ovalar Katmanı
 
 map.addSource('ovalar-source', {
@@ -1804,7 +1769,6 @@ map.on('click', function(e) {
         const p = f.properties;
         const fieldMap = {
           PL_ADI: 'Plan Adı',
-		  NIZAM: 'Nizam',
           KAT: 'Kat Sayısı',
           ON: 'Ön Bahçe',
           YAN: 'Yan Bahçe',
@@ -1865,14 +1829,16 @@ map.on('click', function(e) {
 	
 });
 
-
-
 // ✅ Katman Görünürlüğü Kontrolleri
 document.getElementById('toggleGoogleLayer').addEventListener('change', function (e) {
 	const visible = e.target.checked ? 'visible' : 'none';
 	map.setLayoutProperty('google-tiles-layer', 'visibility', visible);
 	});
 
+document.getElementById('toggleMaptilerTopo').addEventListener('change', function (e) {
+  const visible = e.target.checked ? 'visible' : 'none';
+  map.setLayoutProperty('maptiler-topo-layer', 'visibility', visible);
+});
 ////Katman Görünürlüğü Kontrolleri
   document.getElementById('marParselleri_0-layer-toggle').addEventListener('change', (e) => {
     const v = e.target.checked ? 'visible' : 'none';
@@ -1930,7 +1896,6 @@ mapContainer.addEventListener('click', () => {
   autoDeactivateTabs.forEach(btn => btn.classList.remove('active'));
 });
 
-	
 
 // Grup açma kapama
 function setupGroupToggle(toggleId, groupId) {
@@ -2342,5 +2307,3 @@ document.getElementById('konum').addEventListener('click', (e) => {
 </script>
 </body>
 </html>
-
-
