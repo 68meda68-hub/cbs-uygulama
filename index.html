@@ -914,6 +914,30 @@ function checkPassword() {
   }
 }
 
+document.getElementById('toggleGoogleLayer')
+  .addEventListener('change', function (e) {
+
+    if (!map || !map.isStyleLoaded() || !map.getLayer('google-tiles-layer')) return;
+
+    map.setLayoutProperty(
+      'google-tiles-layer',
+      'visibility',
+      e.target.checked ? 'visible' : 'none'
+    );
+});
+
+document.getElementById('toggleMaptilerTopo')
+  .addEventListener('change', function (e) {
+
+    if (!map || !map.isStyleLoaded() || !map.getLayer('maptiler-topo-layer')) return;
+
+    map.setLayoutProperty(
+      'maptiler-topo-layer',
+      'visibility',
+      e.target.checked ? 'visible' : 'none'
+    );
+});
+
 gateButton.addEventListener('click', checkPassword);
 gateInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
 
@@ -1125,7 +1149,7 @@ addWmsBtn.addEventListener('click', () => {
     source: sourceId,
     layout: { visibility: 'visible' },
     paint: { 'raster-opacity': parseFloat(wmsOpacityRange.value) / 100 }
-  }, beforeLayer);
+  }, 'marParselleri_0-layer');
 
   wmsLayers.push({
     layerId,
@@ -1223,44 +1247,79 @@ map.on('styledata', () => {
   reloadWmsLayers();
 });	
 
-////////////// 🟨 Parseller Katmanı 
+// ===============================
+// 🟦 MAR PARSEL YERİNE GEOJSON KATMAN
+// ===============================
 
-map.addSource('parsellerSource', {
-    type: 'vector',
-    url: 'https://api.maptiler.com/tiles/01997bb2-66b1-7f3b-b050-518fe24e05de/tiles.json?key=aITbmYVmtmwD6PQn83NB',
-	attribution: ''  // ❌ Attribution’u kaldır
-  });
+const otherUrls = [
+	"https://api.maptiler.com/data/019c3d2d-7e80-7b9a-a102-f21cd4178f28/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c3d44-be13-761d-8fd8-d63587886247/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c3d54-f965-7df4-a5e2-c73cc760b65a/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c3d59-982a-713b-87bc-6b93336e6b83/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c3d61-03d2-77cf-ad93-758a3127a0a7/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c3d66-393d-765e-a047-caaaac5ad978/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c3d69-f5b7-7369-a50a-a07b18d61a63/features.json?key=FEBNsYFv1SI5SfZOYEEn"
+	];
 
-  map.addLayer({
-    id: 'marParselleri_0-layer',
-    type: 'fill',
-    source: 'parsellerSource',
-    'source-layer': 'marParselleri_0',
-    paint: {
-      'fill-color': '#ffc107',
-      'fill-opacity': 0.25
-    },
-    layout: { visibility: 'none' }  // Başlangıçta gizli
-  });
+// 🔹 Birleştir
+async function loadAndMergeParselGeoJSON() {
+  let allFeatures = [];
 
-  map.addLayer({
-    id: 'marParselleri_0-outline',
-    type: 'line',
-    source: 'parsellerSource',
-    'source-layer': 'marParselleri_0',
-    paint: {
-      'line-color': '#000000',
-      'line-width': 1
-    },
-    layout: { visibility: 'none' }  // Başlangıçta gizli
-  });
-  
-  // Parsel label katmanı
-	map.addLayer({
+  for (const url of otherUrls) {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error("Veri alınamadı:", url);
+      continue;
+    }
+    const data = await res.json();
+    data.features.forEach(f => {
+      if (!f.properties) f.properties = {};
+    });
+    allFeatures = allFeatures.concat(data.features);
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: allFeatures
+  };
+}
+
+const mergedParselGeoJSON = await loadAndMergeParselGeoJSON();
+
+// 🔹 Source
+map.addSource('marParselleri_0-geojson', {
+  type: 'geojson',
+  data: mergedParselGeoJSON
+});
+
+// 🔹 Fill
+map.addLayer({
+  id: 'marParselleri_0-layer',
+  type: 'fill',
+  source: 'marParselleri_0-geojson',
+  paint: {
+    'fill-color': '#ffc107',
+    'fill-opacity': 0.25
+  },
+  layout: { visibility: 'none' }
+});
+
+// 🔹 Outline
+map.addLayer({
+  id: 'marParselleri_0-outline',
+  type: 'line',
+  source: 'marParselleri_0-geojson',
+  paint: {
+    'line-color': '#000',
+    'line-width': 1
+  },
+  layout: { visibility: 'none' }
+});
+
+map.addLayer({
         id: 'marParselleri_0-label',
         type: 'symbol',
-        source: 'parsellerSource',
-        'source-layer': 'marParselleri_0',
+        source: 'marParselleri_0-geojson',
         minzoom: 16.50, // Zoom 16.50 ve üstünde göster
         layout: {
 			'text-field': ['get', 'ADA_PARSEL'], // property adı
@@ -1274,15 +1333,15 @@ map.addSource('parsellerSource', {
           'text-color': '#000000'
         }
       });
-
+  
  ////////Parsel arama 
 let parselFeatures = [];
 
 // Haritadaki tile'lardan ADI değerlerini al
 map.on('idle', () => {
   parselFeatures = []; // 🔴 HER IDLE'DA TEMİZLE
-  const features = map.querySourceFeatures('parsellerSource', {
-    sourceLayer: 'marParselleri_0'
+  const features = map.queryRenderedFeatures({
+    layers: ['marParselleri_0-layer'] // 🔴 FİLL LAYER ID
   });
 
   const seen = new Set();
@@ -1348,7 +1407,7 @@ geocoder.on('result', (e) => {
   });
 
   if (e.result.properties && e.result.properties.ADI) {
-    showPopup({ properties: e.result.properties }, e.result.center);
+    showPopup(e.result);
   }
 });
 
@@ -1411,54 +1470,8 @@ map.addSource('ovalar-source', {
 ///////////////// 🟦 İmar Planı Katmanı
 
 const urls = [
-	"https://api.maptiler.com/data/0198e64d-d508-7d02-bfc1-654e3b183ba9/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198e657-3748-7ad1-8276-6db2e30b592e/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198f053-5f29-7975-97e1-e8676a425a5d/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198f078-4ee7-7ee6-a815-68801c7cc9e6/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198f4fe-156d-7ecc-88c8-41435866afe4/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198f56c-dc87-713b-95d2-3d2dd9e46e10/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198f62a-724a-75fc-9bf6-3580013bc5f6/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0198f648-45e3-779a-89ca-838bdc67b36a/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990564-be8f-7b22-adb7-86fe00ad019c/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199056f-3f1c-7494-a896-388aaf21f1a0/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/019909bc-f8a7-712f-be4a-eadc4e93cb6e/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/019909c5-6439-745a-b6c6-7f754b461355/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/019909f2-55a7-744e-bc44-444a44ce8d5c/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a0c-6010-7960-b3f5-418afbedbe38/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a1c-781b-72d1-839c-56b4a75ba285/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a24-2f26-7c8c-b301-fccd105d3649/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a2f-b1b0-7d92-a37a-4a8fe481ae25/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a3b-936b-7408-b182-5b56547364a6/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a45-5202-782d-9825-458ca6e75ce2/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990a56-c60d-7087-b8aa-a1d5f5306b00/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990ab3-b4d3-7d27-8108-e2294abaee5e/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990ae9-22fc-70ac-87d8-a398b41cf86f/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01990fc9-d5d7-7540-9e18-276cca6a555b/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199152e-c807-71c2-aad5-07a32171bfec/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01991537-8af5-7fbf-a77a-3c1539c17d2b/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/019919ac-ee68-75f8-8c0e-323a54a54cbe/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01991a0a-3d63-71db-81e3-df4193ff1a37/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01991a10-f67d-7d81-9887-44e50c67013c/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01991a18-6d7b-73c6-9dc0-70f73c9edac4/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01991a20-5d07-7be7-909f-4dd80ae4ad84/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199287d-7b44-7e3d-8b67-316e9896681f/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992884-ce71-7902-bb6e-989ad019464f/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199288d-8dc3-7e42-a0d2-ac78444c5815/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/019928df-8c5d-7148-895f-e33506b78fc3/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/019928e8-4247-718a-bff5-745a2d5a63dd/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992909-316a-7241-9390-210d30bb1d94/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199291b-7284-7b96-8733-b744c7ab50af/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992925-33fb-77a2-a8e6-a4e405c579aa/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199292c-3fff-7846-9c00-417ccc116100/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992934-3b98-79cb-b78e-804307347e3a/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199293c-5373-78c8-8df6-78fdaa7a4351/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992944-0c13-7902-b471-f6ab412c4b72/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199294c-c9d4-7456-9f1d-c7adf88078d9/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992953-fd2f-7fe4-b69c-d538e7c7a36c/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199295b-7975-7aee-bfc5-ee686572cdb4/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992962-94a2-75c2-b356-99962486beb0/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/0199296b-c070-7bb6-b9b7-1e0123e9534c/features.json?key=aITbmYVmtmwD6PQn83NB",
-	"https://api.maptiler.com/data/01992979-900d-7f96-ac84-21a0ad94280c/features.json?key=aITbmYVmtmwD6PQn83NB"
+	"https://api.maptiler.com/data/019c447f-69c3-7f68-824a-d655c4342f1c/features.json?key=FEBNsYFv1SI5SfZOYEEn",
+	"https://api.maptiler.com/data/019c48f8-1421-73d3-b15c-d13d183e8037/features.json?key=FEBNsYFv1SI5SfZOYEEn"
     ];
 
     // JSON'ları birleştir
@@ -1823,13 +1836,12 @@ map.on('click', function(e) {
 
   setTimeout(attachHandlers, 10);
 });
-
-
-	
 	
 });
 
+
 // ✅ Katman Görünürlüğü Kontrolleri
+//Basemaps grup kontrol kontrolü
 document.getElementById('toggleGoogleLayer').addEventListener('change', function (e) {
 	const visible = e.target.checked ? 'visible' : 'none';
 	map.setLayoutProperty('google-tiles-layer', 'visibility', visible);
@@ -1839,6 +1851,7 @@ document.getElementById('toggleMaptilerTopo').addEventListener('change', functio
   const visible = e.target.checked ? 'visible' : 'none';
   map.setLayoutProperty('maptiler-topo-layer', 'visibility', visible);
 });
+
 ////Katman Görünürlüğü Kontrolleri
   document.getElementById('marParselleri_0-layer-toggle').addEventListener('change', (e) => {
     const v = e.target.checked ? 'visible' : 'none';
@@ -1859,18 +1872,17 @@ document.getElementById('toggleMaptilerTopo').addEventListener('change', functio
     map.setLayoutProperty('merged-label-layer', 'visibility', visibility);
   });
   
-
-// Tüm checkbox'ları seç aktiflik yazı rengi
+// Tüm checkbox'ları seç
 document.querySelectorAll('#layer-control input[type="checkbox"]').forEach(cb => {
-  cb.addEventListener('change', e => {
-    const label = e.target.closest('label');
-    label.classList.toggle('active', e.target.checked);
+  const label = cb.closest('label');
 
-    const layerId = e.target.id.replace('-layer', '-tiles-layer');
-    const visible = e.target.checked ? 'visible' : 'none';
-    map.setLayoutProperty(layerId, 'visibility', visible);
-  });
+  // Sayfa yüklenince ilk renk durumunu ayarla
+  label.classList.toggle('active', cb.checked);
+  
 });
+
+
+
 
 // Tüm sidebar tab’ları
 const tabs = document.querySelectorAll('#sidebar .tab');
@@ -1894,7 +1906,7 @@ const autoDeactivateTabs = [
 
 mapContainer.addEventListener('click', () => {
   autoDeactivateTabs.forEach(btn => btn.classList.remove('active'));
-});
+});	
 
 
 // Grup açma kapama
@@ -2186,17 +2198,35 @@ function expandBounds(bounds, coords, type) {
 }
 
 // Popup gösterme fonksiyonu
-function showPopup(e) {
-  const feature = e.features[0];
+function showPopup(input, center) {
+  let feature = null;
+  let lngLat = null;
+
+  // 🟢 Map click’ten geldiyse
+  if (input?.features && input.features.length) {
+    feature = input.features[0];
+    lngLat = input.lngLat;
+  }
+
+  // 🔵 Aramadan geldiyse
+  else if (input?.properties && center) {
+    feature = { properties: input.properties };
+    lngLat = center;
+  }
+
+  if (!feature || !lngLat) return;
+
   const props = feature.properties || {};
   let html = '<strong>Özellikler:</strong><ul>';
+
   for (const key in props) {
     html += `<li><strong>${key}</strong>: ${props[key]}</li>`;
   }
+
   html += '</ul>';
 
   new mapboxgl.Popup()
-    .setLngLat(e.lngLat)
+    .setLngLat(lngLat)
     .setHTML(html)
     .addTo(map);
 }
@@ -2307,5 +2337,3 @@ document.getElementById('konum').addEventListener('click', (e) => {
 </script>
 </body>
 </html>
-
-
