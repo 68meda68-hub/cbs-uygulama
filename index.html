@@ -251,7 +251,7 @@ table td b {
     color: #43A047;          /* Ova katmanı yeşil rengi */
 	}
 table td {
-    
+    color: #000;
     font-size: 11px;
     font-family: Tahoma;
    
@@ -825,7 +825,7 @@ input[type="range"]:hover::-ms-thumb {
 				</label>
 				<span id="yerlesim-gear"
 					  title="Ayarlar ⚙️"
-					  style="cursor:pointer; font-size:15px;"
+					  style="cursor:pointer; font-size:13px;"
 					  onclick="event.stopPropagation();">
 				  ⚙️
 				</span>
@@ -837,6 +837,10 @@ input[type="range"]:hover::-ms-thumb {
 					   type="range" min="0" max="100" value="100">
 				<span id="yerlesim-opacity-value">100%</span>
 			  </div>
+			  <label>
+				<input type="checkbox" id="hatlar-layer-toggle">
+				Altyapı & Ulaşım
+			  </label>
 			</div>
 		</div>
 		<div>
@@ -846,7 +850,7 @@ input[type="range"]:hover::-ms-thumb {
 					<label style="display:flex; align-items:center;cursor:pointer;">
 						<input id="toggle-layer" type="checkbox" /> Merkez Planı
 					</label>
-					<span id="toggle-opacity" title="Ayarlar ⚙️" style="cursor:pointer; font-size:15px;">⚙️</span>
+					<span id="toggle-opacity" title="Ayarlar ⚙️" style="cursor:pointer; font-size:13px;">⚙️</span>
 				</div>
 				<div id="opacity-container" style="margin-top:5px; display:none;">
 					<label for="opacity-control">Opaklık:</label>
@@ -1580,6 +1584,37 @@ yerlesimSlider.addEventListener('input', function () {
   );
   yerlesimValue.textContent = this.value + '%';
 });
+
+///////////////// Hatlar Katmanı
+
+map.addSource('hatlar-source', {
+  type: 'geojson',
+  data: 'https://api.maptiler.com/data/019c9922-d57f-7737-9023-a1040c36326c/features.json?key=FEBNsYFv1SI5SfZOYEEn'
+});
+
+map.addLayer({
+  id: 'hatlar-layer',
+  type: 'line', // ✅ doğru type
+  source: 'hatlar-source',
+  paint: {
+    'line-color': [
+  'match',
+	  ['get', 'ADI'],
+	  'Çevre Yolu',   '#E76F51',  // sıcak asfalt tonu
+	  'Doğalgaz Hattı', '#F4A261', // doğal gaz turuncu
+	  'Petrol Hattı',  '#6D597A',  // koyu mor (petrol ciddi ton)
+	  'Su Hattı',      '#2A9D8F',  // turkuaz-mavi
+	  'Tren Hattı',    '#264653',  // koyu ray rengi
+
+	  '#BDBDBD' // default nötr gri
+	],
+    'line-width': 3,
+    'line-opacity': 1
+  },
+  layout: { 
+    visibility: 'none' 
+  }
+});
 	
 ///////////////// 🟦 İmar Planı Katmanı
 
@@ -1746,7 +1781,7 @@ const urls = [
 
 
 ///katmanda mouse pointer////////
-const pointerLayers = ['ovalar-layer', 'marParselleri_0-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer'];
+const pointerLayers = ['ovalar-layer', 'marParselleri_0-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer', 'hatlar-layer'];
 
 	map.on('mousemove', (e) => {
 	  const features = map.queryRenderedFeatures(e.point, { layers: pointerLayers });
@@ -1757,7 +1792,7 @@ const pointerLayers = ['ovalar-layer', 'marParselleri_0-layer', 'merged-fill-lay
 	
 map.on('click', function(e) {
   const features = map.queryRenderedFeatures(e.point, {
-    layers: ['marParselleri_0-layer', 'ovalar-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer']
+    layers: ['marParselleri_0-layer', 'ovalar-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer', 'hatlar-layer']
   });
 
   if (!features.length) return;
@@ -1766,7 +1801,8 @@ map.on('click', function(e) {
 		'marParselleri_0-layer': '🏡 İmar Parselleri',
 		'ovalar-layer': '🌾 Ova Katmanı',
 		'yerlesimuygunluk-layer': '🏗️ Yerleşim Uygunluk',
-		'merged-fill-layer': '🏘️ İmar Planı'
+		'merged-fill-layer': '🏘️ İmar Planı',
+		'hatlar-layer': '🛣️ Altyapı & Ulaşım Hatları'
 	};
 
   const uniqueLayers = [...new Set(features.map(f => f.layer.id))];
@@ -1825,6 +1861,7 @@ map.on('click', function(e) {
     else if (layerId === 'ovalar-layer') fillColor = '#43A047';
 	else if (layerId === 'yerlesimuygunluk-layer') fillColor = '#8E24AA';
     else if (layerId === 'merged-fill-layer') fillColor = '#1E88E5';
+	else if (layerId === 'hatlar-layer') fillColor = '#1E88E5';
 
     // Alan dolgu (polygon)
     map.addLayer({
@@ -1897,7 +1934,12 @@ map.on('click', function(e) {
         headerColor = '#43A047';
         if (f.properties.ADI) rows += `<tr><td><b>Adı</b></td><td>${f.properties.ADI}</td></tr>`;
         if (f.properties.ACIKLAMA) rows += `<tr><td><b>Açıklama</b></td><td>${f.properties.ACIKLAMA}</td></tr>`;
-      } else if (layerId === 'merged-fill-layer') {
+      } else if (layerId === 'hatlar-layer') {
+        if (f.properties.ADI) rows += `<tr><td><b>Adı</b></td><td>${f.properties.ADI}</td></tr>`;
+        if (f.properties.ACIKLAMA) rows += `<tr><td><b>Açıklama</b></td><td>${f.properties.ACIKLAMA}</td></tr>`;
+		if (f.properties.HAT_TIPI) rows += `<tr><td><b>Hat Tipi</b></td><td>${f.properties.HAT_TIPI}</td></tr>`;
+		if (f.properties.GUZERGAH) rows += `<tr><td><b>Güzergah</b></td><td>${f.properties.GUZERGAH}</td></tr>`;
+	  } else if (layerId === 'merged-fill-layer') {
         headerColor = '#1E88E5';
         const p = f.properties;
         const fieldMap = {
@@ -1990,6 +2032,11 @@ document.getElementById('toggleMaptilerTopo').addEventListener('change', functio
     const v = e.target.checked ? 'visible' : 'none';
     map.setLayoutProperty('yerlesimuygunluk-layer', 'visibility', v);
   });	
+  
+  document.getElementById('hatlar-layer-toggle').addEventListener('change', (e) => {
+    const v = e.target.checked ? 'visible' : 'none';
+    map.setLayoutProperty('hatlar-layer', 'visibility', v);
+  });
   
   const toggle = document.getElementById('toggle-layer');
 	toggle.addEventListener('change', (e) => {
