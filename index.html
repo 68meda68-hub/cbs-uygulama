@@ -1381,40 +1381,20 @@ map.addLayer({
       });
   
  ////////Parsel arama 
-let parselFeatures = [];
-
-// Haritadaki tile'lardan ADI değerlerini al
-map.on('idle', () => {
-  parselFeatures = []; // 🔴 HER IDLE'DA TEMİZLE
-  const features = map.queryRenderedFeatures({
-    layers: ['marParselleri_0-layer'] // 🔴 FİLL LAYER ID
-  });
-
-  const seen = new Set();
-
-  for (const f of features) {
-    const id = f.properties.ADI;
-    if (id && !seen.has(id)) {
-      seen.add(id);
-      parselFeatures.push(f);
-    }
-  }
-
-  console.log(`Yüklenen ADI sayısı: ${parselFeatures.length}`);
-});
-
-// Geocoder (Arama)
+ 
 const geocoder = new MapboxGeocoder({
   accessToken: mapboxgl.accessToken,
   localGeocoder: localParselGeocoder,
-  localGeocoderOnly: false, // 🔥 KRİTİK
+  localGeocoderOnly: false,
   zoom: 15,
   placeholder: 'Adres veya Parsel Adı girin',
   mapboxgl: mapboxgl,
+
   marker: {
     color: 'blue',
     scale: 0.8
   },
+
   render: function(item) {
     if (item.properties && item.properties.ADI) {
       return `
@@ -1424,23 +1404,22 @@ const geocoder = new MapboxGeocoder({
         </div>
       `;
     }
-
-    // 🔵 Normal Mapbox adres sonuçları
     return `<div class="geocoder-item">${item.place_name}</div>`;
   }
 });
 
-
 map.addControl(geocoder);
 
-// Geocoder sonucu seçildiğinde
 geocoder.on('result', (e) => {
   rotating = false;
 
   const mapDiv = document.getElementById('map');
   mapDiv.style.transition = 'background-color 1s ease';
   mapDiv.style.backgroundColor = '#fffaf0';
-  map.setPaintProperty('background-layer', 'background-color', '#fffaf0');
+
+  if (map.getLayer('background-layer')) {
+    map.setPaintProperty('background-layer', 'background-color', '#fffaf0');
+  }
 
   map.setProjection({ name: 'mercator' });
 
@@ -1452,43 +1431,46 @@ geocoder.on('result', (e) => {
     easing: t => t
   });
 
-  if (e.result.properties && e.result.properties.ADI) {
+  if (e.result?.properties?.ADI) {
     showPopup(e.result);
   }
 });
 
-// ===============================
-// 🔴 ASIL ÇÖZÜM BURASI
-// ===============================
 function localParselGeocoder(query) {
   if (!query || query.length < 2) return [];
 
-  const results = [];
-  const used = new Set(); // 🔴 AYNI ADI ENGELLER
-
   const q = query.toLowerCase();
+  const results = [];
+  const used = new Set();
 
-  for (const feature of parselFeatures) {
-    const adi = feature.properties.ADI;
-    // 🔥 SADECE İLE BAŞLAYAN
-    if (!adi.toLowerCase().startsWith(q)) continue;
+  const features =
+    map.getSource('marParselleri_0-geojson')?._data?.features || [];
 
-    // 🔴 AYNI PARSEL ADI VARSA ATLA
+  for (const feature of features) {
+
+    const adi = feature.properties?.ADI;
+    if (!adi) continue;
+
+    if (!adi.toLowerCase().includes(q)) continue;
+
     if (used.has(adi)) continue;
     used.add(adi);
 
     const center = turf.center(feature).geometry.coordinates;
 
     results.push({
-      id: adi, // 🔴 SABİT VE TEKİL
+      type: 'Feature',
+      id: adi,
       place_name: `Parsel : ${adi}`,
-      center: center,
+      center,
       geometry: {
         type: 'Point',
         coordinates: center
       },
       properties: feature.properties
     });
+
+    if (results.length >= 10) break;
   }
 
   return results;
