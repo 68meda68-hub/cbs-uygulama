@@ -241,6 +241,8 @@ button#add-wms-layer-btn {
 /* Popup içeriği üstte X ile çakışmasın */
 .mapboxgl-popup-content {
     padding-top: 16px !important;
+	max-height: 200px;     /* istediğin sınır */
+    overflow-y: auto;      /* 🔥 scroll aktif */
 	}
 table td b {
     display: inline-block;   /* margin çalışması için */
@@ -256,6 +258,17 @@ table td {
     font-family: Tahoma;
    
 	}
+	
+.mapboxgl-popup-content a:focus {
+    outline: none;
+}
+
+.mapboxgl-popup-content a:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #1E88E5;
+    border-radius: 3px;
+}
+
 /* Popup */
 /*Geoceder  */
 .mapboxgl-ctrl-geocoder {
@@ -840,6 +853,10 @@ input[type="range"]:hover::-ms-thumb {
 			  <label>
 				<input type="checkbox" id="hatlar-layer-toggle">
 				Altyapı & Ulaşım
+			  </label>
+			  <label>
+				<input type="checkbox" id="icmesuyu-KA-layer-toggle">
+				İçmesuyu Kor.Alan
 			  </label>
 			</div>
 		</div>
@@ -1495,6 +1512,55 @@ map.addSource('ovalar-source', {
     layout: { visibility: 'none' }  // Başlangıçta gizli
   }, 'marParselleri_0-layer');
   
+///////////////// 🟦 İçmesuyu Koruma Alanları Katmanı 68_netmaxgayrimenkul adresinde
+
+map.addSource('icmesuyu-KA-source', {
+    type: 'geojson',
+    data: 'https://api.maptiler.com/data/019d9132-069d-7652-a5be-f956a03418ca/features.json?key=1aK6CKfciIAhWR7lHfe8'
+  });
+
+  map.addLayer({
+  id: 'icmesuyu-KA-layer',
+  type: 'fill',
+  source: 'icmesuyu-KA-source',
+  paint: {
+    'fill-color': [
+      'match',
+      ['get', 'ALAN_ADI'],
+
+      'Mutlak Koruma Alanı', 'rgba(0,36,99,1.0)',
+      '1.Derece Koruma Alanı', 'rgba(0,128,0,1.0)',
+      '2.Derece Koruma Alanı', 'rgba(31,120,180,1.0)',
+      'İlave Tedbir Alanı', 'rgba(213,180,60,1.0)',
+      '#D1C4E9'
+    ],
+    'fill-opacity': 0.1 // (istersen şeffaf bırakabilirsin)
+  },
+  layout: { visibility: 'none' }
+});
+
+map.addLayer({
+  id: 'layers.icmesuyu-KA-outline',
+  type: 'line',
+  source: 'icmesuyu-KA-source',
+
+  paint: {
+    'line-color': [
+      'match',
+      ['get', 'ALAN_ADI'],
+
+      'Mutlak Koruma Alanı', 'rgba(0,36,99,1.0)',
+      '1.Derece Koruma Alanı', 'rgba(0,128,0,1.0)',
+      '2.Derece Koruma Alanı', 'rgba(31,120,180,1.0)',
+      'İlave Tedbir Alanı', 'rgba(213,180,60,1.0)',
+      '#D1C4E9'
+    ],
+    'line-width': 1.2
+  },
+
+  layout: { visibility: 'none' }
+});
+  
   ///////////////// 🟦 Yerleşime Uygunluk Katmanı
 
 map.addSource('yerlesimuygunluk-source', {
@@ -1781,7 +1847,7 @@ const urls = [
 
 
 ///katmanda mouse pointer////////
-const pointerLayers = ['ovalar-layer', 'marParselleri_0-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer', 'hatlar-layer'];
+const pointerLayers = ['ovalar-layer', 'marParselleri_0-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer', 'hatlar-layer', 'icmesuyu-KA-layer'];
 
 	map.on('mousemove', (e) => {
 	  const features = map.queryRenderedFeatures(e.point, { layers: pointerLayers });
@@ -1792,7 +1858,7 @@ const pointerLayers = ['ovalar-layer', 'marParselleri_0-layer', 'merged-fill-lay
 	
 map.on('click', function(e) {
   const features = map.queryRenderedFeatures(e.point, {
-    layers: ['marParselleri_0-layer', 'ovalar-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer', 'hatlar-layer']
+    layers: ['marParselleri_0-layer', 'ovalar-layer', 'merged-fill-layer', 'yerlesimuygunluk-layer', 'hatlar-layer', 'icmesuyu-KA-layer']
   });
 
   if (!features.length) return;
@@ -1802,7 +1868,8 @@ map.on('click', function(e) {
 		'ovalar-layer': '🌾 Ova Katmanı',
 		'yerlesimuygunluk-layer': '🏗️ Yerleşim Uygunluk',
 		'merged-fill-layer': '🏘️ İmar Planı',
-		'hatlar-layer': '🛣️ Altyapı & Ulaşım Hatları'
+		'hatlar-layer': '🛣️ Altyapı & Ulaşım Hatları',
+		'icmesuyu-KA-layer': '💧 İçmesuyu Koruma Alanı'
 	};
 
   const uniqueLayers = [...new Set(features.map(f => f.layer.id))];
@@ -1862,7 +1929,7 @@ map.on('click', function(e) {
 	else if (layerId === 'yerlesimuygunluk-layer') fillColor = '#8E24AA';
     else if (layerId === 'merged-fill-layer') fillColor = '#1E88E5';
 	else if (layerId === 'hatlar-layer') fillColor = '#1E88E5';
-
+	else if (layerId === 'icmesuyu-KA-layer') fillColor = '#00ACC1'; // 💧 su rengi
     // Alan dolgu (polygon)
     map.addLayer({
       id: 'highlight-fill',
@@ -1959,7 +2026,10 @@ map.on('click', function(e) {
         for (let k in fieldMap) {
           if (p[k]) rows += `<tr><td><b>${fieldMap[k]}</b></td><td>${p[k]}</td></tr>`;
         }
-      }
+      } else if (layerId === 'icmesuyu-KA-layer') {
+        if (f.properties.ALAN_ADI) rows += `<tr><td><b>Adı</b></td><td style="color:red;">${f.properties.ALAN_ADI}</td></tr>`;
+        if (f.properties.ACIKLAMA) rows += `<tr><td><b>Açıklama</b></td><td>${f.properties.ACIKLAMA}</td></tr>`;
+	  }
 
       if (!rows) rows = '<tr><td colspan="2">Bilgi yok</td></tr>';
 
@@ -1984,17 +2054,23 @@ map.on('click', function(e) {
 
     // Geri butonu işlemi
     setTimeout(function() {
-      const newEl = popup.getElement();
-      if (!newEl) return;
-      newEl.addEventListener('click', function back(ev2) {
-        if (ev2.target && ev2.target.id === 'backBtn') {
-          ev2.preventDefault();
-          removeHighlight(); // geri dönünce vurguyu kaldır
-          popup.setHTML(listHTML);
-          setTimeout(attachHandlers, 10);
-        }
-      }, { once: true });
-    }, 10);
+	  const newEl = popup.getElement();
+	  if (!newEl) return;
+
+	  // 🔥 scroll en üste
+	  const content = newEl.querySelector('.mapboxgl-popup-content');
+	  if (content) content.scrollTop = 0;
+
+	  newEl.addEventListener('click', function back(ev2) {
+		if (ev2.target && ev2.target.id === 'backBtn') {
+		  ev2.preventDefault();
+		  removeHighlight();
+		  popup.setHTML(listHTML);
+		  setTimeout(attachHandlers, 10);
+		}
+	  }, { once: true });
+
+	}, 10);
   }
 
   setTimeout(attachHandlers, 10);
@@ -2004,7 +2080,7 @@ map.on('click', function(e) {
 
 
 // ✅ Katman Görünürlüğü Kontrolleri
-//Basemaps grup kontrol kontrolü
+
 document.getElementById('toggleGoogleLayer').addEventListener('change', function (e) {
 	const visible = e.target.checked ? 'visible' : 'none';
 	map.setLayoutProperty('google-tiles-layer', 'visibility', visible);
@@ -2038,6 +2114,12 @@ document.getElementById('toggleMaptilerTopo').addEventListener('change', functio
     map.setLayoutProperty('hatlar-layer', 'visibility', v);
   });
   
+  document.getElementById('icmesuyu-KA-layer-toggle').addEventListener('change', (e) => {
+    const v = e.target.checked ? 'visible' : 'none';
+    map.setLayoutProperty('icmesuyu-KA-layer', 'visibility', v);
+	map.setLayoutProperty('layers.icmesuyu-KA-outline', 'visibility', v);
+  });
+  
   const toggle = document.getElementById('toggle-layer');
 	toggle.addEventListener('change', (e) => {
     const visibility = e.target.checked ? 'visible' : 'none';
@@ -2049,11 +2131,13 @@ document.getElementById('toggleMaptilerTopo').addEventListener('change', functio
 document.querySelectorAll('#layer-control input[type="checkbox"]').forEach(cb => {
   const label = cb.closest('label');
 
-  // Sayfa yüklenince ilk renk durumunu ayarla
-  label.classList.toggle('active', cb.checked);
-  
-});
+  function updateState(){
+    label.classList.toggle('active', cb.checked);
+  }
 
+  updateState();
+  cb.addEventListener("change", updateState);
+});
 
 
 
